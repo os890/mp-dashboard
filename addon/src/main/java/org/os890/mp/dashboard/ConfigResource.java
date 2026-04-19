@@ -22,8 +22,13 @@ import jakarta.ws.rs.Path;
 import jakarta.ws.rs.Produces;
 import jakarta.ws.rs.core.MediaType;
 import org.eclipse.microprofile.config.Config;
+import org.eclipse.microprofile.config.inject.ConfigProperty;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
 import java.util.TreeSet;
+import java.util.regex.Pattern;
 
 @Path("/dashboard/api/config")
 public class ConfigResource {
@@ -31,9 +36,15 @@ public class ConfigResource {
     @Inject
     private Config config;
 
+    @Inject
+    @ConfigProperty(name = "dashboard.config.filter")
+    private Optional<String> configFilter;
+
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public String getConfig() {
+        List<Pattern> patterns = buildPatterns();
+
         JsonArrayBuilder entries = Json.createArrayBuilder();
         TreeSet<String> sortedKeys = new TreeSet<>();
 
@@ -54,6 +65,7 @@ public class ConfigResource {
             } catch (Exception e) {
                 entry.add("value", "<unresolvable>");
             }
+            entry.add("matched", matchesFilter(key, patterns));
             entries.add(entry);
         }
 
@@ -61,6 +73,27 @@ public class ConfigResource {
                 .add("entries", entries)
                 .build()
                 .toString();
+    }
+
+    private List<Pattern> buildPatterns() {
+        List<Pattern> patterns = new ArrayList<>();
+        if (configFilter.isPresent() && !configFilter.get().isBlank()) {
+            for (String regex : configFilter.get().split(",")) {
+                String trimmed = regex.trim();
+                if (!trimmed.isEmpty()) {
+                    patterns.add(Pattern.compile(trimmed));
+                }
+            }
+        }
+        return patterns;
+    }
+
+    private boolean matchesFilter(String key, List<Pattern> patterns) {
+        if (patterns.isEmpty()) return true;
+        for (Pattern p : patterns) {
+            if (p.matcher(key).matches()) return true;
+        }
+        return false;
     }
 
     private boolean isSensitive(String key) {

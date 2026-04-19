@@ -179,7 +179,12 @@ tr:hover td { background: var(--bg3); }
     </div>
     <div class="card full-width">
         <h2>MicroProfile Config</h2>
-        <input type="text" class="config-filter" id="filter" placeholder="Filter properties..." oninput="filterConfig()">
+        <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">
+            <input type="text" class="config-filter" id="filter" placeholder="Filter properties..." oninput="filterConfig()" style="margin-bottom:0;flex:1">
+            <label style="font-size:12px;color:var(--fg2);white-space:nowrap;cursor:pointer;display:flex;align-items:center;gap:4px">
+                <input type="checkbox" id="show-all" onchange="filterConfig()"> Show all properties
+            </label>
+        </div>
         <div class="config-count" id="config-count"></div>
         <div class="config-scroll">
             <table>
@@ -292,13 +297,17 @@ function renderConfig(entries) {
 
 function filterConfig() {
     var q = document.getElementById('filter').value.toLowerCase();
+    var showAll = document.getElementById('show-all').checked;
     var tbody = document.getElementById('config-body');
     var countEl = document.getElementById('config-count');
     var filtered = configData.filter(function(e) {
+        if (!showAll && !e.matched) return false;
         return e.key.toLowerCase().indexOf(q) >= 0 || e.value.toLowerCase().indexOf(q) >= 0;
     });
+    var otherCount = configData.filter(function(e) { return !e.matched; }).length;
     countEl.textContent = 'Showing ' + filtered.length + ' of ' + configData.length + ' properties' +
-        (filtered.length > 20 ? ' (scroll down)' : '');
+        (!showAll && otherCount > 0 ? ' (' + otherCount + ' hidden)' : '') +
+        (filtered.length > 20 ? ' — scroll down' : '');
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="2" class="empty">No matching properties</td></tr>';
         return;
